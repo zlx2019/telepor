@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"github.com/zlx2019/spoor"
