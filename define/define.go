@@ -1,14 +1,16 @@
 // @Title define.go
-// @Description 常量枚举
+// @Description 全局常量
 // @Author Zero - 2024/8/10 17:53:26
 
 package define
 
-// 连接协议
+// SocksVersion Socks协议版本
+const SocksVersion = 0x05
+
+// 协议类型
 const (
 	Unknown = iota - 1
 	Socks5
 	HTTP
 	HTTPS
 )
-

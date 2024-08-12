@@ -11,7 +11,7 @@ import (
 
 func main() {
 	server := server2.MixedServer{
-		Addr: "127.0.0.1:9946",
+		Addr: "127.0.0.1:15001",
 	}
 	if err := server.Startup(); err != nil {
 		logger.Logger.PanicSf("Startup server failed: %s", err)

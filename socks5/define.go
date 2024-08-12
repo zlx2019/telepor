@@ -13,6 +13,7 @@ const (
 
 // Method Socks5 认证方式类型
 type Method = byte
+
 const (
 	NoAuthentication    Method = 0x00 // 无需认证
 	GSSAPI                     = 0x01 // GSSAPI认证
@@ -24,6 +25,7 @@ const (
 
 // Command Socks5 代理请求指令
 type Command = byte
+
 const (
 	Connect Command = 0x01 // 表示TCP代理
 	BIND            = 0x02
@@ -32,13 +34,15 @@ const (
 
 // AddressType 地址类型
 type AddressType = byte
+
 const (
-	IPv4       AddressType = 0x01 // 表示为IPv4
-	DomainName             = 0x03 // 表示为域名
-	IPv6                   = 0x04 // 表示为IPv6
+	IPv4   AddressType = 0x01 // 表示为IPv4
+	Domain             = 0x03 // 表示为域名
+	IPv6               = 0x04 // 表示为IPv6
 )
 
 // Socks5 服务错误
 var (
 	VersionNotSupportedErr = errors.New("the current service only supports Socks5")
+	CommandNotSupportedErr = errors.New("the current service only supports tcp proxy")
 )
