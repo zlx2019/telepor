@@ -36,10 +36,15 @@ func (s *Server) Handle(conn *connection.Connection) error {
 	}
 	// TODO 协商
 	if err := s.negotiate(conn); err != nil {
+		logger.Logger.ErrorSf("[Socks5] shakeHands fail: %v", err)
 		return err
 	}
 	// TODO 尝试与目标服务器建立连接
-	_, _ = s.bridge(conn)
+	pc, err := s.bridge(conn)
+	if err != nil {
+		logger.Logger.ErrorSf("[Socks5] connect real server fail: %v", err)
+		return err
+	}
 
 	// TODO 双方数据转发
 	return nil
@@ -47,20 +52,29 @@ func (s *Server) Handle(conn *connection.Connection) error {
 
 // 与目标服务器建立连接，并且返回连接
 func (s *Server) bridge(conn *connection.Connection) (*connection.Connection, error) {
-	msg, err := ProxyRequestUnpack(conn)
+	// 解析代理请求报文,获取目标地址信息
+	pr, err := ProxyRequestUnpack(conn)
 	if err != nil {
-		logger.Logger.ErrorSf("unpack socks5 proxy request failed: %c", err)
+		logger.Logger.ErrorSf("unpack socks5 proxy request failed: %v", err)
 		return nil, err
 	}
-	logger.Logger.InfoSf("[Socks5 Request] VER: %d, CMD: %d, ATYP: %d, ADDR: %s",
-		msg.Version, msg.Cmd, msg.Type, msg.Addr())
+	if pr.Cmd != Connect {
+		// TODO 不支持的 CMD
+		return nil, nil
+	}
+	if pr.AddrType == IPv6 {
+		// TODO 不支持的 地址类型
+		return nil, nil
+	}
+
+	// 与目标主机建立TCP连接
 	return nil, nil
 }
 
 // 与 Socks5 客户端进行'协商'处理
 func (s *Server) negotiate(conn *connection.Connection) error {
 	// 解析协商报文
-	pack, err := s.negotiationUnpack(conn)
+	pack, err := NegotiationUnpack(conn)
 	if err != nil {
 		return err
 	}

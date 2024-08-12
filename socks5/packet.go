@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"telepor/connection"
 	"telepor/pool"
 )
 
@@ -23,16 +22,16 @@ import (
 // | 1  |  1  | X'00' |  1   | Variable |    2     |
 // +----+-----+-------+------+----------+----------+
 // Cmd: 代理请求指令
-// Type: 目标主机地址类型
+// AddrType: 目标主机地址类型
 // DstHost: 目标主机
 // DstPort: 目标端口
 type SocksRequestMsg struct {
-	Version byte
-	Cmd     Command
-	Rsv     byte
-	Type    AddressType
-	DstHost string
-	DstPort uint16
+	Version  byte
+	Cmd      Command
+	Rsv      byte
+	AddrType AddressType
+	DstHost  string
+	DstPort  uint16
 }
 
 // Addr 获取代理目标地址信息
@@ -41,23 +40,23 @@ func (sr *SocksRequestMsg) Addr() string {
 }
 
 // ProxyRequestUnpack 解析 Socks5 代理请求报文
-func ProxyRequestUnpack(c *connection.Connection) (*SocksRequestMsg, error) {
-	// Read VER、CMD、RSV、A_TYPE
+func ProxyRequestUnpack(c io.Reader) (*SocksRequestMsg, error) {
+	// Read `VER`、`CMD`、`RSV`、`A_TYPE`
 	buf := pool.Borrow(4)
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
 	msg := &SocksRequestMsg{}
 	// 报文参数校验
-	msg.Version, msg.Cmd, msg.Type = buf[0], buf[1], buf[3]
+	msg.Version, msg.Cmd, msg.AddrType = buf[0], buf[1], buf[3]
 	if Version != msg.Version {
 		return nil, VersionNotSupportedErr
 	}
 	if Connect != msg.Cmd {
 		return nil, CommandNotSupportedErr
 	}
-	// Read DST.ADDR [IPv4 | IPv6 | 域名]
-	switch msg.Type {
+	// Read `DST.ADDR` [IPv4 | IPv6 | 域名]
+	switch msg.AddrType {
 	case IPv4:
 	case IPv6:
 		pool.Revert(buf)
@@ -75,13 +74,12 @@ func ProxyRequestUnpack(c *connection.Connection) (*SocksRequestMsg, error) {
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
-	if msg.Type == Domain {
+	if msg.AddrType == Domain {
 		msg.DstHost = string(buf)
 	} else {
-		// 字节序大端处理
 		msg.DstHost = net.IP(buf).String()
 	}
-	// Read DST.PORT (大端处理)
+	// Read `DST.PORT` (大端处理)
 	if _, err := io.ReadFull(c, buf[:2]); err != nil {
 		return nil, err
 	}
@@ -96,7 +94,7 @@ type AuthMethodMsg struct {
 	Methods []byte
 }
 
-// Socks5 解析 Socks5 协商报文
+// NegotiationUnpack 解析 Socks5 协议协商报文
 // +----+-----------+----------+
 // |VER | N_METHODS | METHODS  |
 // +----+-----------+----------+
@@ -105,16 +103,16 @@ type AuthMethodMsg struct {
 // VER: Socks版本
 // N_METHODS: `METHODS`序列的长度
 // METHODS: 一个动态的字节序列，表示客户端支持的认证方式
-func (s *Server) negotiationUnpack(conn net.Conn) (pack *AuthMethodMsg, err error) {
+func NegotiationUnpack(conn io.Reader) (pack *AuthMethodMsg, err error) {
 	buf := pool.Borrow(2)
 	defer pool.Revert(buf)
-	// Read VER and N_METHODS
+	// Read `VER` and `N_METHODS`
 	if _, err = io.ReadFull(conn, buf); err != nil {
 		return
 	}
 	version := buf[0]
 	length := buf[1]
-	// Read METHODS
+	// Read `METHODS`
 	methodBuf := pool.Borrow(int(length))
 	defer pool.Revert(methodBuf)
 	if _, err = io.ReadFull(conn, methodBuf); err != nil {
