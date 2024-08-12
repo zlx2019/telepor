@@ -20,6 +20,10 @@ type Server struct {
 	SuperiorProxyPort int    // 上级代理服务端口
 }
 
+func NewSocks5Server() *Server {
+	return &Server{}
+}
+
 // Startup 运行 Socks5 代理服务器
 func (s *Server) Startup() error {
 	return nil

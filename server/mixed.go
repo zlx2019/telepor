@@ -18,7 +18,7 @@ import (
 type MixedServer struct {
 	Addr         string
 	Socks5Server *socks5.Server
-	HTTPServer   *http.HTTPServer
+	HTTPServer   *http.Server
 }
 
 // Startup 启动 Mixed 服务
@@ -47,7 +47,6 @@ func (ms *MixedServer) dispatch(c net.Conn) {
 		logger.Logger.ErrorSf("不支持的协议: %s", err.Error())
 		return
 	}
-	logger.Logger.InfoSf("conn is %s", conn.RemoteAddr().String(), pact)
 	switch pact {
 	case define.Socks5:
 		err = ms.Socks5Server.Handle(conn)

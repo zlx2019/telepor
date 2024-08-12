@@ -5,6 +5,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -19,4 +20,10 @@ func TestSocks5Conn(t *testing.T) {
 	//	}
 	//	t.Logf("success: %v", pack)
 	//})
+}
+
+func TestBytes(t *testing.T) {
+	for i := 0; i < 17; i++ {
+		fmt.Println(1 << i)
+	}
 }

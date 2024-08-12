@@ -6,11 +6,15 @@ package socks5
 // @Create      2024-08-12 15:11
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"strconv"
 	"telepor/connection"
+	"telepor/pool"
 )
+
+// Socks5 协议报文解析，参考与 https://datatracker.ietf.org/doc/rfc1928/
 
 // SocksRequestMsg 代理请求报文(1 + 1 + 1 + 1 + 2 + variable)
 // +----+-----+-------+------+----------+----------+
@@ -39,7 +43,7 @@ func (sr *SocksRequestMsg) Addr() string {
 // ProxyRequestUnpack 解析 Socks5 代理请求报文
 func ProxyRequestUnpack(c *connection.Connection) (*SocksRequestMsg, error) {
 	// Read VER、CMD、RSV、A_TYPE
-	buf := make([]byte, 4)
+	buf := pool.Borrow(4)
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
@@ -52,21 +56,22 @@ func ProxyRequestUnpack(c *connection.Connection) (*SocksRequestMsg, error) {
 	if Connect != msg.Cmd {
 		return nil, CommandNotSupportedErr
 	}
-	// [IPv4 | IPv6 | 域名]
+	// Read DST.ADDR [IPv4 | IPv6 | 域名]
 	switch msg.Type {
 	case IPv4:
-		buf = make([]byte, net.IPv4len)
 	case IPv6:
-		buf = make([]byte, net.IPv6len)
+		pool.Revert(buf)
+		buf = pool.Borrow(net.IPv6len)
 	case Domain:
 		if _, err := io.ReadFull(c, buf[:1]); err != nil {
 			return nil, err
 		}
 		if int(buf[0]) > cap(buf) {
-			buf = make([]byte, buf[0])
+			pool.Revert(buf)
+			buf = pool.Borrow(int(buf[0]))
 		}
 	}
-	// Read DST.ADDR
+	defer pool.Revert(buf)
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
@@ -80,7 +85,7 @@ func ProxyRequestUnpack(c *connection.Connection) (*SocksRequestMsg, error) {
 	if _, err := io.ReadFull(c, buf[:2]); err != nil {
 		return nil, err
 	}
-	msg.DstPort = (uint16(buf[0]) << 8) + uint16(buf[1])
+	msg.DstPort = binary.BigEndian.Uint16(buf[:2])
 	return msg, nil
 }
 
@@ -91,7 +96,7 @@ type AuthMethodMsg struct {
 	Methods []byte
 }
 
-// Socks5 解析 Socks5 协商报文 (1 + 1 + (1 ~ 255))
+// Socks5 解析 Socks5 协商报文
 // +----+-----------+----------+
 // |VER | N_METHODS | METHODS  |
 // +----+-----------+----------+
@@ -101,7 +106,8 @@ type AuthMethodMsg struct {
 // N_METHODS: `METHODS`序列的长度
 // METHODS: 一个动态的字节序列，表示客户端支持的认证方式
 func (s *Server) negotiationUnpack(conn net.Conn) (pack *AuthMethodMsg, err error) {
-	buf := make([]byte, 2)
+	buf := pool.Borrow(2)
+	defer pool.Revert(buf)
 	// Read VER and N_METHODS
 	if _, err = io.ReadFull(conn, buf); err != nil {
 		return
@@ -109,7 +115,8 @@ func (s *Server) negotiationUnpack(conn net.Conn) (pack *AuthMethodMsg, err erro
 	version := buf[0]
 	length := buf[1]
 	// Read METHODS
-	methodBuf := make([]byte, length)
+	methodBuf := pool.Borrow(int(length))
+	defer pool.Revert(methodBuf)
 	if _, err = io.ReadFull(conn, methodBuf); err != nil {
 		return
 	}

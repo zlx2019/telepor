@@ -5,6 +5,10 @@ package http
 // @Author      Zero.
 // @Create      2024-08-09 18:34
 
-// HTTPServer HTTP 服务端
-type HTTPServer struct {
+// Server HTTP 服务端
+type Server struct {
+}
+
+func NewHttpServer() *Server {
+	return &Server{}
 }
