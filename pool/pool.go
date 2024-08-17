@@ -8,7 +8,6 @@ package pool
 import (
 	"math/bits"
 	"sync"
-	"telepor/logger"
 )
 
 // 按照级别(1~16)创建一批缓冲池，缓解内存的分配频率
@@ -31,7 +30,7 @@ func init() {
 		levelCap := 1 << l
 		levels[l] = levelCap
 		pools[l].New = func() any {
-			logger.Logger.InfoSf("Creating new buffer pool level: %d cap: %d", l, levelCap)
+			//logger.Logger.InfoSf("Creating new buffer pool level: %d cap: %d", l, levelCap)
 			return make([]byte, levelCap)
 		}
 	}

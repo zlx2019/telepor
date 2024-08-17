@@ -1,6 +1,6 @@
 package socks5
 
-// @Title       packet.go
+// @Title       request.go
 // @Description Socks5 数据报文处理
 // @Author      Zero.
 // @Create      2024-08-12 15:11
@@ -10,12 +10,13 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"telepor/connection"
 	"telepor/pool"
 )
 
 // Socks5 协议报文解析，参考与 https://datatracker.ietf.org/doc/rfc1928/
 
-// SocksRequestMsg 代理请求报文(1 + 1 + 1 + 1 + 2 + variable)
+// SocksRequest 代理请求报文(1 + 1 + 1 + 1 + 2 + variable)
 // +----+-----+-------+------+----------+----------+
 // |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
 // +----+-----+-------+------+----------+----------+
@@ -25,7 +26,7 @@ import (
 // AddrType: 目标主机地址类型
 // DstHost: 目标主机
 // DstPort: 目标端口
-type SocksRequestMsg struct {
+type SocksRequest struct {
 	Version  byte
 	Cmd      Command
 	Rsv      byte
@@ -35,18 +36,34 @@ type SocksRequestMsg struct {
 }
 
 // Addr 获取代理目标地址信息
-func (sr *SocksRequestMsg) Addr() string {
-	return net.JoinHostPort(sr.DstHost, strconv.Itoa(int(sr.DstPort)))
+func (req *SocksRequest) Addr() string {
+	return net.JoinHostPort(req.DstHost, strconv.Itoa(int(req.DstPort)))
 }
 
+// Checker 请求校验
+func (req *SocksRequest) Checker(c *connection.Connection) error {
+	if req.Cmd != Connect {
+		// 不支持的 CMD
+		_ = RequestFailureReply(c, CommandNotSupported)
+		return CommandNotSupportedErr
+	}
+	if req.AddrType == IPv6 {
+		//  不支持的 地址类型
+		_ = RequestFailureReply(c, AddressTypeNotSupported)
+		return AddressTypeNotSupportedErr
+	}
+	return nil
+}
+
+
 // ProxyRequestUnpack 解析 Socks5 代理请求报文
-func ProxyRequestUnpack(c io.Reader) (*SocksRequestMsg, error) {
+func ProxyRequestUnpack(c io.Reader) (*SocksRequest, error) {
 	// Read `VER`、`CMD`、`RSV`、`A_TYPE`
 	buf := pool.Borrow(4)
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
-	msg := &SocksRequestMsg{}
+	msg := &SocksRequest{}
 	// 报文参数校验
 	msg.Version, msg.Cmd, msg.AddrType = buf[0], buf[1], buf[3]
 	if Version != msg.Version {
@@ -87,8 +104,8 @@ func ProxyRequestUnpack(c io.Reader) (*SocksRequestMsg, error) {
 	return msg, nil
 }
 
-// AuthMethodMsg Socks5 协商报文
-type AuthMethodMsg struct {
+// AuthRequest Socks5 协商报文
+type AuthRequest struct {
 	Version byte
 	NMethod byte
 	Methods []byte
@@ -103,7 +120,7 @@ type AuthMethodMsg struct {
 // VER: Socks版本
 // N_METHODS: `METHODS`序列的长度
 // METHODS: 一个动态的字节序列，表示客户端支持的认证方式
-func NegotiationUnpack(conn io.Reader) (pack *AuthMethodMsg, err error) {
+func NegotiationUnpack(conn io.Reader) (req *AuthRequest, err error) {
 	buf := pool.Borrow(2)
 	defer pool.Revert(buf)
 	// Read `VER` and `N_METHODS`
@@ -118,7 +135,7 @@ func NegotiationUnpack(conn io.Reader) (pack *AuthMethodMsg, err error) {
 	if _, err = io.ReadFull(conn, methodBuf); err != nil {
 		return
 	}
-	pack = &AuthMethodMsg{
+	req = &AuthRequest{
 		Version: version,
 		NMethod: length,
 		Methods: methodBuf,

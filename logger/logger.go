@@ -17,8 +17,7 @@ func init() {
 	var err error
 	Logger, err = spoor.NewSpoor(&spoor.Config{
 		Level:         spoor.DEBUG,
-		LogTimeFormat: "",
-		Plugins:       []zap.Option{zap.AddCaller(), zap.AddStacktrace(spoor.ERROR)},
+		Plugins:       []zap.Option{zap.AddCaller()},
 		WrapSkip:      1,
 	})
 	if err != nil {

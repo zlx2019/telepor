@@ -40,8 +40,14 @@ func (ms *MixedServer) Startup() error {
 
 // TCP 连接处理，根据协议派发至具体的服务实现.
 func (ms *MixedServer) dispatch(c net.Conn) {
+	// panic handler
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Logger.ErrorSf("conn [%s] panic: %v", c.RemoteAddr().String(), err)
+		}
+		_ = c.Close()
+	}()
 	conn := connection.WrapConn(c)
-	defer conn.Close()
 	pact, err := tool.IdentifyPact(conn)
 	if err != nil {
 		logger.Logger.ErrorSf("不支持的协议: %s", err.Error())
@@ -49,10 +55,7 @@ func (ms *MixedServer) dispatch(c net.Conn) {
 	}
 	switch pact {
 	case define.Socks5:
-		err = ms.Socks5Server.Handle(conn)
+		ms.Socks5Server.Handle(conn)
 	case define.HTTP:
-	}
-	if err != nil {
-		logger.Logger.ErrorSf("handler err : %v", err)
 	}
 }

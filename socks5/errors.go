@@ -13,4 +13,7 @@ var (
 )
 
 // Socks5 请求阶段错误
-var ()
+
+var (
+	AddressTypeNotSupportedErr = errors.New("ipv6 address type is not currently supported")
+)

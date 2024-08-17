@@ -39,17 +39,7 @@ const (
 	IPv6               = 0x04 // 表示为IPv6
 )
 
-// RequestReply 代理请求连接响应
-type RequestReply = byte
 
-const (
-	Succeeded               RequestReply = 0x00 // 连接成功
-	SocksServerFailure                   = 0x01 // 当前代理服务器错误
-	NotAllowedByRuleset                  = 0x02 // 不支持的规则
-	NetworkNotReachable                  = 0x03 // 网络不可达错误
-	HostUnreachable                      = 0x04 // 目标主机不可访问
-	ConnectionRefused                    = 0x05 // 连接目标主机被拒绝
-	TTLExpired                           = 0x06 // 访问超时
-	CommandNotSupported                  = 0x07 // 代理请求的`CMD`不支持
-	AddressTypeNotSupported              = 0x08 // 代理请求的目标地址类型不支持
-)
+
+// Reserved 保留位，无任何意义的字节填充
+const Reserved = 0x00

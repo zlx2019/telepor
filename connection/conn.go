@@ -1,4 +1,4 @@
-// @Title conn.go
+// @Title connection.go
 // @Description Connect 封装
 // @Author Zero - 2024/8/11 09:57:54
 
