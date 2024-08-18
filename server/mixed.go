@@ -34,12 +34,13 @@ func (ms *MixedServer) Startup() error {
 			logger.Logger.ErrorSf("[Mixed] Accept error: %v", err)
 			continue
 		}
-		go ms.dispatch(conn)
+		c := connection.WrapConn(conn)
+		go ms.ServeHandle(c)
 	}
 }
 
-// TCP 连接处理，根据协议派发至具体的服务实现.
-func (ms *MixedServer) dispatch(c net.Conn) {
+// ServeHandle Mixed 服务请求处理，将请求(TCP)派发至 Socks5 或 HTTP 代理服务
+func (ms *MixedServer) ServeHandle(c *connection.Connection) {
 	// panic handler
 	defer func() {
 		if err := recover(); err != nil {
@@ -47,15 +48,14 @@ func (ms *MixedServer) dispatch(c net.Conn) {
 		}
 		_ = c.Close()
 	}()
-	conn := connection.WrapConn(c)
-	pact, err := tool.IdentifyPact(conn)
+	pact, err := tool.IdentifyPact(c)
 	if err != nil {
 		logger.Logger.ErrorSf("不支持的协议: %s", err.Error())
 		return
 	}
 	switch pact {
 	case define.Socks5:
-		ms.Socks5Server.Handle(conn)
+		ms.Socks5Server.ServeHandle(c)
 	case define.HTTP:
 	}
 }

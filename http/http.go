@@ -1,6 +1,6 @@
 package http
 
-import "telepor/connection"
+import . "telepor/connection"
 
 // @Title       http.go
 // @Description HTTP 代理服务
@@ -9,14 +9,20 @@ import "telepor/connection"
 
 // Server HTTP 服务端
 type Server struct {
-}
 
+}
 func NewHttpServer() *Server {
 	return &Server{}
 }
 
-func (s *Server) Handle(conn *connection.Connection) error {
+// Startup 启动 HTTP 代理服务器
+func (s *Server) Startup() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+// ServeHandle 处理 HTTP/S 请求
+func (s *Server) ServeHandle(c *Connection) {
 	// 从TCP中读取 HTTP1.x Request
 	//request, err := http.ReadRequest(connection.Reader())
-	return nil
 }

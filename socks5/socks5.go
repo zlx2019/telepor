@@ -34,8 +34,8 @@ func (s *Server) Startup() error {
 	return nil
 }
 
-// Handle 处理 Socks5 请求
-func (s *Server) Handle(c *Connection) {
+// ServeHandle 处理 Socks5 请求
+func (s *Server) ServeHandle(c *Connection) {
 	if c, ok := c.Conn.(*net.TCPConn); ok {
 		_ = c.SetKeepAlive(true)
 	}
