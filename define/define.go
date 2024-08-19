@@ -7,9 +7,11 @@ package define
 // SocksVersion Socks协议版本
 const SocksVersion = 0x05
 
-// 协议类型
+// ProtocolType 支持的代理协议类型
+type ProtocolType = int8
+
 const (
-	Unknown = iota - 1
+	Unknown ProtocolType = iota - 1
 	Socks5
 	HTTP
 	HTTPS

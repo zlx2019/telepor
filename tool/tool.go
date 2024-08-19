@@ -13,7 +13,7 @@ import (
 var methods = []string{"CONNECT", "GET", "POST", "PUT", "DELETE", "TRACE", "OPTIONS"}
 
 // IdentifyPact 判断并且获取连接使用的协议类型
-func IdentifyPact(c *connection.Connection) (int8, error) {
+func IdentifyPact(c *connection.Connection) (define.ProtocolType, error) {
 	// is Socks5？
 	ver, _ := c.Peek(1)
 	if ver[0] == define.SocksVersion {
@@ -23,7 +23,7 @@ func IdentifyPact(c *connection.Connection) (int8, error) {
 	// is HTTP? 通过HTTP请求行 Method 判断
 	line, err := c.Peek(7)
 	if err != nil {
-		return 0, err
+		return define.Unknown, err
 	}
 	method := strings.ToUpper(string(line))
 	isHttp := ContainsBy(methods, func(item string) bool {

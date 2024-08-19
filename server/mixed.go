@@ -6,7 +6,7 @@ package server
 
 import (
 	"net"
-	"telepor/connection"
+	. "telepor/connection"
 	"telepor/define"
 	"telepor/http"
 	"telepor/logger"
@@ -34,13 +34,13 @@ func (ms *MixedServer) Startup() error {
 			logger.Logger.ErrorSf("[Mixed] Accept error: %v", err)
 			continue
 		}
-		c := connection.WrapConn(conn)
+		c := WrapConn(conn)
 		go ms.ServeHandle(c)
 	}
 }
 
-// ServeHandle Mixed 服务请求处理，将请求(TCP)派发至 Socks5 或 HTTP 代理服务
-func (ms *MixedServer) ServeHandle(c *connection.Connection) {
+// ServeHandle Mixed 服务请求处理，识别连接的协议
+func (ms *MixedServer) ServeHandle(c *Connection) {
 	// panic handler
 	defer func() {
 		if err := recover(); err != nil {
@@ -48,14 +48,22 @@ func (ms *MixedServer) ServeHandle(c *connection.Connection) {
 		}
 		_ = c.Close()
 	}()
-	pact, err := tool.IdentifyPact(c)
-	if err != nil {
-		logger.Logger.ErrorSf("不支持的协议: %s", err.Error())
+	protocol, err := tool.IdentifyPact(c)
+	if err != nil || protocol == define.Unknown {
+		logger.Logger.ErrorSf("不支持的协议: %s", err)
 		return
 	}
-	switch pact {
+	ms.DistributeConn(c, protocol)
+}
+
+// DistributeConn 连接派发至下游服务处理
+func (ms *MixedServer) DistributeConn(c *Connection, protocol define.ProtocolType) {
+	switch protocol {
 	case define.Socks5:
 		ms.Socks5Server.ServeHandle(c)
 	case define.HTTP:
+		ms.Socks5Server.ServeHandle(c)
+	default:
+		return
 	}
 }

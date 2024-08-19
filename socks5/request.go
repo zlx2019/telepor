@@ -55,7 +55,6 @@ func (req *SocksRequest) Checker(c *connection.Connection) error {
 	return nil
 }
 
-
 // ProxyRequestUnpack 解析 Socks5 代理请求报文
 func ProxyRequestUnpack(c io.Reader) (*SocksRequest, error) {
 	// Read `VER`、`CMD`、`RSV`、`A_TYPE`
@@ -63,17 +62,17 @@ func ProxyRequestUnpack(c io.Reader) (*SocksRequest, error) {
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
-	msg := &SocksRequest{}
+	req := &SocksRequest{}
 	// 报文参数校验
-	msg.Version, msg.Cmd, msg.AddrType = buf[0], buf[1], buf[3]
-	if Version != msg.Version {
+	req.Version, req.Cmd, req.Rsv, req.AddrType = buf[0], buf[1], buf[2], buf[3]
+	if Version != req.Version {
 		return nil, VersionNotSupportedErr
 	}
-	if Connect != msg.Cmd {
+	if Connect != req.Cmd {
 		return nil, CommandNotSupportedErr
 	}
 	// Read `DST.ADDR` [IPv4 | IPv6 | 域名]
-	switch msg.AddrType {
+	switch req.AddrType {
 	case IPv4:
 	case IPv6:
 		pool.Revert(buf)
@@ -91,17 +90,17 @@ func ProxyRequestUnpack(c io.Reader) (*SocksRequest, error) {
 	if _, err := io.ReadFull(c, buf); err != nil {
 		return nil, err
 	}
-	if msg.AddrType == Domain {
-		msg.DstHost = string(buf)
+	if req.AddrType == Domain {
+		req.DstHost = string(buf)
 	} else {
-		msg.DstHost = net.IP(buf).String()
+		req.DstHost = net.IP(buf).String()
 	}
 	// Read `DST.PORT` (大端处理)
 	if _, err := io.ReadFull(c, buf[:2]); err != nil {
 		return nil, err
 	}
-	msg.DstPort = binary.BigEndian.Uint16(buf[:2])
-	return msg, nil
+	req.DstPort = binary.BigEndian.Uint16(buf[:2])
+	return req, nil
 }
 
 // AuthRequest Socks5 协商报文
@@ -120,7 +119,7 @@ type AuthRequest struct {
 // VER: Socks版本
 // N_METHODS: `METHODS`序列的长度
 // METHODS: 一个动态的字节序列，表示客户端支持的认证方式
-func NegotiationUnpack(conn io.Reader) (req *AuthRequest, err error) {
+func shakeHandsMessageUnpack(conn io.Reader) (req *AuthRequest, err error) {
 	buf := pool.Borrow(2)
 	defer pool.Revert(buf)
 	// Read `VER` and `N_METHODS`

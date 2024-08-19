@@ -9,8 +9,12 @@ import . "telepor/connection"
 
 // Server HTTP 服务端
 type Server struct {
-
+	Next         bool		// 是否转发到下级代理
+	NextProtocol string		// 下级代理协议(支持 HTTP -> Socks5)
+	NextHost     string		// 下级代理服务地址
+	NextPort     uint16		// 下级代理服务端口
 }
+
 func NewHttpServer() *Server {
 	return &Server{}
 }

@@ -19,14 +19,16 @@ import (
 
 // Server 仅支持 Socks5 的服务端
 type Server struct {
-	AuthMethod        int8   // 认证方式
-	ForwardProxy      bool   // 是否转发到上级代理
-	SuperiorProxyHost string // 上级代理服务地址
-	SuperiorProxyPort int    // 上级代理服务端口
+	AuthMode     Method // 服务支持的认证模式
+
+	Next         bool   // 是否转发到下级代理
+	NextProtocol string // 下级代理服务类型 (支持 Socks5 -> HTTP)
+	NextHost     string // 下级代理服务地址
+	NextPort     string // 下级代理服务端口
 }
 
 func NewSocks5Server() *Server {
-	return &Server{}
+	return &Server{AuthMode: UserPassword}
 }
 
 // Startup 运行 Socks5 代理服务器
@@ -52,8 +54,8 @@ func (s *Server) ServeHandle(c *Connection) {
 	}
 	defer tc.Close()
 	// Step3 客户端连接 & 目标服务连接 进行数据交换
-	_ = tc.SetReadDeadline(time.Now().Add(time.Second * 3))
-	_ = c.SetReadDeadline(time.Now().Add(time.Second * 3))
+	//_ = tc.SetReadDeadline(time.Now().Add(time.Second * 3))
+	//_ = c.SetReadDeadline(time.Now().Add(time.Second * 3))
 	flow, err := tool.Swap(c, tc)
 	if err != nil {
 		logger.Logger.ErrorSf("[Socks5] request forward error: %v", err)
@@ -61,8 +63,6 @@ func (s *Server) ServeHandle(c *Connection) {
 	}
 	logger.Logger.InfoSf("[Socks5] Client(%s) -> Server(%s) Succeeded, flow: %d", c.RemoteAddr().String(), tc.RemoteAddr().String(), flow)
 }
-
-
 
 // 与目标服务器建立连接，并且返回连接
 func (s *Server) tunnel(conn *Connection) (tc *Connection, e error) {
@@ -78,7 +78,7 @@ func (s *Server) tunnel(conn *Connection) (tc *Connection, e error) {
 		return
 	}
 	// Step3 与目标服务建立连接
-	c, e := net.DialTimeout("tcp", req.Addr(), time.Second * 10)
+	c, e := net.DialTimeout("tcp", req.Addr(), time.Second*10)
 	if e != nil {
 		// todo fix 根据不同的错误，响应不同的 REP
 		_ = RequestFailureReply(conn, HostUnreachable)
@@ -99,25 +99,28 @@ func (s *Server) tunnel(conn *Connection) (tc *Connection, e error) {
 
 // 与 Socks5 客户端握手，协商双方认证方式
 func (s *Server) shakeHands(conn *Connection) error {
-	// 解析协商报文
-	req, err := NegotiationUnpack(conn)
+	// 解析客户端协商报文
+	req, err := shakeHandsMessageUnpack(conn)
 	if err != nil {
 		return err
 	}
-	// 回应协商结果
-	if req.NMethod <= 0 || len(req.Methods) == 0 {
-		_ = s.negotiationReply(conn, NoAcceptableMethods)
-		return errors.New("the client does not have any authentication method")
-	}
-	switch {
-	case tool.Contains(req.Methods, NoAuthentication):
+	if s.AuthMode == NoAuthentication {
 		// 无需认证
-		err = s.negotiationReply(conn, NoAuthentication)
-	case tool.Contains(req.Methods, UserPassword):
-		// 用户名密码认证
-		err = s.negotiationReply(conn, UserPassword)
+		return s.shakeHandsReply(conn, NoAuthentication)
 	}
-	return err
+	if s.AuthMode == UserPassword && tool.Contains(req.Methods, UserPassword) {
+		// 用户名密码认证
+		if _, err = s.AuthByUsernamePassword(conn); err != nil {
+			// 认证失败
+			_ = s.AuthReply(conn, AuthFailure)
+			return fmt.Errorf("auth failed: %s", err.Error())
+		}
+		// 认证成功
+		return s.AuthReply(conn, AuthSuccess)
+	}
+	// 没有可接受的认证方式
+	_ = s.shakeHandsReply(conn, NoAcceptableMethods)
+	return errors.New("no acceptable authentication method")
 }
 
 // RequestSuccessReply 代理请求 建立连接成功报文
@@ -126,7 +129,7 @@ func (s *Server) shakeHands(conn *Connection) error {
 // +----+-----+-------+------+----------+----------+
 // | 1  |  1  | X'00' |  1   | Variable |    2     |
 // +----+-----+-------+------+----------+----------+
-func RequestSuccessReply(c io.Writer ,bindIP net.IP, bindPort uint16) (err error) {
+func RequestSuccessReply(c io.Writer, bindIP net.IP, bindPort uint16) (err error) {
 	var addrType AddressType = IPv4
 	if len(bindIP) == net.IPv6len {
 		addrType = IPv6
@@ -157,7 +160,7 @@ func RequestFailureReply(c io.Writer, reply RequestReply) error {
 // +----+--------+
 // | 1  |   1    |
 // +----+--------+
-func (s *Server) negotiationReply(conn *Connection, method Method) error {
+func (s *Server) shakeHandsReply(conn *Connection, method Method) error {
 	_, err := conn.Write([]byte{Version, method})
 	return err
 }

@@ -39,7 +39,13 @@ const (
 	IPv6               = 0x04 // 表示为IPv6
 )
 
-
-
 // Reserved 保留位，无任何意义的字节填充
 const Reserved = 0x00
+
+
+// 用户名密码认证状态
+const(
+	AuthVersion = 0x01
+	AuthSuccess = 0x00
+	AuthFailure = 0x01
+)

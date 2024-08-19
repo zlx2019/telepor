@@ -10,7 +10,14 @@ import "telepor/connection"
 type Server interface {
 	// Startup 启动服务
 	Startup() error
-	// ServeHandle 处理请求
+}
+
+// ProxyServer 代理服务端
+type ProxyServer interface {
+	// ServeHandle 代理请求处理
 	ServeHandle(*connection.Connection)
 }
 
+// MiddleProxyServer 代理转发服务端
+type MiddleProxyServer interface {
+}
