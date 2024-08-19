@@ -62,7 +62,7 @@ func (ms *MixedServer) DistributeConn(c *Connection, protocol define.ProtocolTyp
 	case define.Socks5:
 		ms.Socks5Server.ServeHandle(c)
 	case define.HTTP:
-		ms.Socks5Server.ServeHandle(c)
+		ms.HTTPServer.ServeHandle(c)
 	default:
 		return
 	}

@@ -1,7 +1,7 @@
 package pool
 
-// @Title       pool.go
-// @Description 缓冲池
+// @Title       buffer_pool.go
+// @Description 缓冲区池
 // @Author      Zero.
 // @Create      2024-08-12 16:15
 
@@ -20,16 +20,16 @@ const (
 )
 
 var (
-	levels [level]int       // 不同缓冲池中的缓冲区大小
-	pools  [level]sync.Pool // 缓冲池序列
+	levels      [level]int       // 不同缓冲池中的缓冲区大小
+	bufferPools [level]sync.Pool // 缓冲池序列
 )
 
-// init pools
+// init bufferPools
 func init() {
 	for l := 0; l < level; l++ {
 		levelCap := 1 << l
 		levels[l] = levelCap
-		pools[l].New = func() any {
+		bufferPools[l].New = func() any {
 			//logger.Logger.InfoSf("Creating new buffer pool level: %d cap: %d", l, levelCap)
 			return make([]byte, levelCap)
 		}
@@ -43,7 +43,7 @@ func Borrow(size int) []byte {
 		if levels[l] < size {
 			l += 1
 		}
-		return pools[l].Get().([]byte)[:size]
+		return bufferPools[l].Get().([]byte)[:size]
 	}
 	return make([]byte, size)
 }
@@ -53,7 +53,7 @@ func Revert(buffer []byte) {
 	if size := cap(buffer); size >= 1 && size <= maxBytes {
 		l := bits.Len32(uint32(size)) - 1
 		if levels[l] == size {
-			pools[l].Put(buffer)
+			bufferPools[l].Put(buffer)
 		}
 	}
 }
