@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"syscall"
+	"telepor/config"
 	. "telepor/connection"
 	"telepor/logger"
 	"telepor/tool"
@@ -28,7 +31,7 @@ type Server struct {
 }
 
 func NewSocks5Server() *Server {
-	return &Server{AuthMode: NoAuthentication}
+	return &Server{AuthMode: config.Conf.Socks5.AuthMode}
 }
 
 // Startup 运行 Socks5 代理服务器
@@ -57,7 +60,9 @@ func (s *Server) ServeHandle(c *Connection) {
 	//_ = tc.SetReadDeadline(time.Now().Add(time.Second * 3))
 	//_ = c.SetReadDeadline(time.Now().Add(time.Second * 3))
 	flow, err := tool.Swap(c, tc)
-	if err != nil {
+	// ErrDeadlineExceeded: 连接超时
+	// EPIPE | EOF: 有一端已被关闭
+	if err != nil && !errors.Is(err, os.ErrDeadlineExceeded) && !errors.Is(err, syscall.EPIPE) && errors.Is(err, io.EOF) {
 		logger.Logger.ErrorSf("[Socks5] request forward error: %v", err)
 		return
 	}
@@ -78,7 +83,7 @@ func (s *Server) tunnel(conn *Connection) (tc *Connection, e error) {
 		return
 	}
 	// Step3 与目标服务建立连接
-	c, e := net.DialTimeout("tcp", req.Addr(), time.Second*10)
+	c, e := net.DialTimeout("tcp", req.Addr(), time.Second*3)
 	if e != nil {
 		// todo fix 根据不同的错误，响应不同的 REP
 		_ = RequestFailureReply(conn, HostUnreachable)

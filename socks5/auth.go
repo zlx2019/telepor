@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"telepor/config"
 	"telepor/connection"
 	"telepor/logger"
 	"telepor/pool"
@@ -28,12 +29,10 @@ import (
 type AuthUserRequest struct {
 	Version     byte
 	UsernameLen byte
-	Username       string
+	Username    string
 	PasswdLen   byte
-	Password      string
+	Password    string
 }
-
-
 
 // AuthByUsernamePassword 以 UserPassword 模式与客户端进行认证
 // 认证消息报文
@@ -42,7 +41,7 @@ type AuthUserRequest struct {
 // +----+------+----------+------+----------+
 // | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
 // +----+------+----------+------+----------+
-func (s *Server) AuthByUsernamePassword(c *connection.Connection) (req *AuthUserRequest ,err error) {
+func (s *Server) AuthByUsernamePassword(c *connection.Connection) (req *AuthUserRequest, err error) {
 	// 响应握手报文，告知客户端使用 用户名密码认证
 	err = s.shakeHandsReply(c, UserPassword)
 	if err != nil {
@@ -82,11 +81,16 @@ func (s *Server) AuthByUsernamePassword(c *connection.Connection) (req *AuthUser
 		return
 	}
 	req.Password = string(buf[:req.PasswdLen])
-	logger.Logger.InfoSf("[Socks5] Auth Version: %d Username: %s, Password: %s",req.Version, req.Username, req.Password)
+	// check username and password
+	logger.Logger.InfoSf("[Socks5] Auth Version: %d Username: %s, Password: %s", req.Version, req.Username, req.Password)
+	password, ok := config.Conf.Socks5.Auths[req.Username]
+	if !ok || req.Password != password {
+		return nil, fmt.Errorf("invalid of username password")
+	}
 	return
 }
 
-func (s *Server) AuthMessage()  {
+func (s *Server) AuthMessage() {
 
 }
 
@@ -98,7 +102,7 @@ func (s *Server) AuthMessage()  {
 // +----+--------+
 // VER: 认证版本
 // STATUS: 认证结果 `0x00`表示认证成功，其他表示为失败
-func (s *Server) AuthReply(c *connection.Connection ,status byte) error  {
+func (s *Server) AuthReply(c *connection.Connection, status byte) error {
 	_, err := c.Write([]byte{AuthVersion, status})
 	return err
 }

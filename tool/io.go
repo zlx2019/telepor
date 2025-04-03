@@ -7,9 +7,7 @@ package tool
 import (
 	"errors"
 	"io"
-	"os"
 	"sync"
-	"syscall"
 )
 
 // Swap 交换两个连接的数据流，并计算发送与响应的数据总量
@@ -32,12 +30,18 @@ func Swap(client, server io.ReadWriter) (n int64, err error) {
 	// 等待两个连接关闭.
 	latch.Wait()
 	n = sent + rece
-	if serr != nil && !errors.Is(serr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
+	if serr != nil {
 		err = serr
 	}
-	if rerr != nil && !errors.Is(rerr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
+	if rerr != nil {
 		err = rerr
 	}
+	//if serr != nil && !errors.Is(serr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
+	//	err = serr
+	//}
+	//if rerr != nil && !errors.Is(rerr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
+	//	err = rerr
+	//}
 	return
 }
 

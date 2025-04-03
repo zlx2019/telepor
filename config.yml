@@ -1,0 +1,7 @@
+bind: 0.0.0.0:17890
+socks5:
+  AuthMode: 2
+  auths:
+    zero9501: rootROOT@1234
+    other: root
+http:
