@@ -13,7 +13,7 @@ import (
 
 func main() {
 	serv := server.MixedServer{
-		Addr:         "127.0.0.1:15001",
+		Addr:         "0.0.0.0:15001",
 		Socks5Server: socks5.NewSocks5Server(),
 		HTTPServer:   http.NewHttpServer(),
 	}

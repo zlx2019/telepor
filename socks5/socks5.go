@@ -19,7 +19,7 @@ import (
 
 // Server 仅支持 Socks5 的服务端
 type Server struct {
-	AuthMode     Method // 服务支持的认证模式
+	AuthMode Method // 服务支持的认证模式
 
 	Next         bool   // 是否转发到下级代理
 	NextProtocol string // 下级代理服务类型 (支持 Socks5 -> HTTP)
@@ -28,7 +28,7 @@ type Server struct {
 }
 
 func NewSocks5Server() *Server {
-	return &Server{AuthMode: UserPassword}
+	return &Server{AuthMode: NoAuthentication}
 }
 
 // Startup 运行 Socks5 代理服务器

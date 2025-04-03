@@ -9,10 +9,11 @@ import (
 	"io"
 	"os"
 	"sync"
+	"syscall"
 )
 
 // Swap 交换两个连接的数据流，并计算发送与响应的数据总量
-func Swap(client, server io.ReadWriter) (n int64 ,err error) {
+func Swap(client, server io.ReadWriter) (n int64, err error) {
 	var serr, rerr error
 	var latch sync.WaitGroup
 	var sent int64 // client 发送数据量
@@ -31,28 +32,28 @@ func Swap(client, server io.ReadWriter) (n int64 ,err error) {
 	// 等待两个连接关闭.
 	latch.Wait()
 	n = sent + rece
-	if serr != nil && !errors.Is(serr, os.ErrDeadlineExceeded){
+	if serr != nil && !errors.Is(serr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
 		err = serr
 	}
-	if rerr != nil && !errors.Is(rerr, os.ErrDeadlineExceeded){
+	if rerr != nil && !errors.Is(rerr, os.ErrDeadlineExceeded) && !errors.Is(rerr, syscall.EPIPE) {
 		err = rerr
 	}
 	return
 }
 
 // Transfer 转移数据流，并允许指定内部缓冲区大小
-func Transfer(dst io.Writer, src io.Reader, sizes ...uint64) (int64,error) {
+func Transfer(dst io.Writer, src io.Reader, sizes ...uint64) (int64, error) {
 	if len(sizes) > 0 {
 		return transfer(dst, src, make([]byte, sizes[0]))
 	}
 	return transfer(dst, src, nil)
 }
-func TransferWithBuf(dst io.Writer, src io.Reader, buffer []byte) (int64,error) {
+func TransferWithBuf(dst io.Writer, src io.Reader, buffer []byte) (int64, error) {
 	return transfer(dst, src, buffer)
 }
 
 // TransferOnlyN 数据流拷贝，仅从src中拷贝 n 字节.
-func TransferOnlyN(dst io.Writer, src io.Reader, n int64, size ...uint64) (int64,error){
+func TransferOnlyN(dst io.Writer, src io.Reader, n int64, size ...uint64) (int64, error) {
 	if len(size) > 0 {
 		return TransferOnlyNWithBuf(dst, src, n, make([]byte, size[0]))
 	}
@@ -76,7 +77,6 @@ func TransferOnlyNWithBuf(dst io.Writer, src io.Reader, n int64, buffer []byte) 
 	}
 	return written, err
 }
-
 
 // 将 src 中的数据，转移到 dst 中
 // 直至从 src 读取到 EOF，但正常完成后不会返回 EOF
